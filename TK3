@@ -10,10 +10,17 @@ CREATE TABLE IF NOT EXISTS pessoas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
     endereco TEXT,
+    bairro TEXT,
     cep TEXT
 )
 """)
 con.commit()
+
+try:
+    cur.execute("ALTER TABLE pessoas ADD COLUMN bairro TEXT")
+    con.commit()
+except:
+    pass
 
 try:
     cur.execute("ALTER TABLE pessoas ADD COLUMN cep TEXT")
@@ -24,13 +31,14 @@ except:
 def salvar_nome():
     nome = entrada_nome.get().strip()
     endereco = entrada_endereco.get().strip()
+    bairro = entrada_bairro.get().strip()
     cep = entrada_cep.get().strip()
 
-    if nome == "" or endereco == "" or cep == "":
-        messagebox.showwarning("Atenção", "Preencha nome, endereço e CEP antes de salvar!")
+    if nome == "" or endereco == "" or bairro == "" or cep == "":
+        messagebox.showwarning("Atenção", "Preencha todos os campos antes de salvar!")
         return
 
-    cur.execute("INSERT INTO pessoas (nome, endereco, cep) VALUES (?, ?, ?)", (nome, endereco, cep))
+    cur.execute("INSERT INTO pessoas (nome, endereco, bairro, cep) VALUES (?, ?, ?, ?)", (nome, endereco, bairro, cep))
     con.commit()
 
     limpar_campos()
@@ -40,7 +48,7 @@ def salvar_nome():
 def atualizar_grade():
     for item in tabela.get_children():
         tabela.delete(item)
-    cur.execute("SELECT id, nome, endereco, cep FROM pessoas ORDER BY id DESC")
+    cur.execute("SELECT id, nome, endereco, bairro, cep FROM pessoas ORDER BY id DESC")
     for row in cur.fetchall():
         tabela.insert("", tk.END, values=row)
 
@@ -71,22 +79,26 @@ def editar_registro():
     entrada_nome.insert(0, valores[1])
     entrada_endereco.delete(0, tk.END)
     entrada_endereco.insert(0, valores[2])
+    entrada_bairro.delete(0, tk.END)
+    entrada_bairro.insert(0, valores[3])
     entrada_cep.delete(0, tk.END)
-    entrada_cep.insert(0, valores[3])
+    entrada_cep.insert(0, valores[4])
 
     botao_salvar.config(state="disabled")
     botao_editar.config(state="disabled")
     botao_salvar_edicao.config(state="normal")
-    botao_novo.config(state="normal")
 
 def salvar_edicao():
     nome = entrada_nome.get().strip()
     endereco = entrada_endereco.get().strip()
+    bairro = entrada_bairro.get().strip()
     cep = entrada_cep.get().strip()
-    if nome == "" or endereco == "" or cep == "":
+
+    if nome == "" or endereco == "" or bairro == "" or cep == "":
         messagebox.showwarning("Atenção", "Preencha todos os campos!")
         return
-    cur.execute("UPDATE pessoas SET nome=?, endereco=?, cep=? WHERE id=?", (nome, endereco, cep, id_em_edicao))
+
+    cur.execute("UPDATE pessoas SET nome=?, endereco=?, bairro=?, cep=? WHERE id=?", (nome, endereco, bairro, cep, id_em_edicao))
     con.commit()
     messagebox.showinfo("Sucesso", f"Registro ID {id_em_edicao} atualizado!")
     limpar_campos()
@@ -98,6 +110,7 @@ def salvar_edicao():
 def limpar_campos():
     entrada_nome.delete(0, tk.END)
     entrada_endereco.delete(0, tk.END)
+    entrada_bairro.delete(0, tk.END)
     entrada_cep.delete(0, tk.END)
     botao_salvar.config(state="normal")
     botao_editar.config(state="normal")
@@ -105,18 +118,22 @@ def limpar_campos():
 
 janela = tk.Tk()
 janela.title("Cadastro de Pessoas")
-janela.geometry("620x420")
+janela.geometry("700x460")
 
 tk.Label(janela, text="Digite o nome:").pack(pady=5)
-entrada_nome = tk.Entry(janela, width=35)
+entrada_nome = tk.Entry(janela, width=40)
 entrada_nome.pack(pady=5)
 
 tk.Label(janela, text="Digite o endereço:").pack(pady=5)
-entrada_endereco = tk.Entry(janela, width=35)
+entrada_endereco = tk.Entry(janela, width=40)
 entrada_endereco.pack(pady=5)
 
+tk.Label(janela, text="Digite o bairro:").pack(pady=5)
+entrada_bairro = tk.Entry(janela, width=40)
+entrada_bairro.pack(pady=5)
+
 tk.Label(janela, text="Digite o CEP:").pack(pady=5)
-entrada_cep = tk.Entry(janela, width=35)
+entrada_cep = tk.Entry(janela, width=40)
 entrada_cep.pack(pady=5)
 
 frame_botoes = tk.Frame(janela)
@@ -143,16 +160,18 @@ botao_sair.grid(row=0, column=5, padx=5)
 frame_tabela = tk.Frame(janela)
 frame_tabela.pack(pady=10, fill="both", expand=True)
 
-tabela = ttk.Treeview(frame_tabela, columns=("id", "nome", "endereco", "cep"), show="headings", height=8)
+tabela = ttk.Treeview(frame_tabela, columns=("id", "nome", "endereco", "bairro", "cep"), show="headings", height=8)
 tabela.heading("id", text="ID")
 tabela.heading("nome", text="Nome")
 tabela.heading("endereco", text="Endereço")
+tabela.heading("bairro", text="Bairro")
 tabela.heading("cep", text="CEP")
 
 tabela.column("id", width=40, anchor="center")
 tabela.column("nome", width=150)
-tabela.column("endereco", width=220)
-tabela.column("cep", width=100, anchor="center")
+tabela.column("endereco", width=200)
+tabela.column("bairro", width=120)
+tabela.column("cep", width=90, anchor="center")
 
 scrollbar_y = ttk.Scrollbar(frame_tabela, orient="vertical", command=tabela.yview)
 scrollbar_y.pack(side="right", fill="y")
