@@ -1,0 +1,164 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import sqlite3
+
+con = sqlite3.connect("pessoas.db")
+cur = con.cursor()
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS pessoas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    endereco TEXT,
+    cep TEXT
+)
+""")
+con.commit()
+
+try:
+    cur.execute("ALTER TABLE pessoas ADD COLUMN cep TEXT")
+    con.commit()
+except:
+    pass
+
+def salvar_nome():
+    nome = entrada_nome.get().strip()
+    endereco = entrada_endereco.get().strip()
+    cep = entrada_cep.get().strip()
+
+    if nome == "" or endereco == "" or cep == "":
+        messagebox.showwarning("Atenção", "Preencha nome, endereço e CEP antes de salvar!")
+        return
+
+    cur.execute("INSERT INTO pessoas (nome, endereco, cep) VALUES (?, ?, ?)", (nome, endereco, cep))
+    con.commit()
+
+    limpar_campos()
+    messagebox.showinfo("Sucesso", f"'{nome}' salvo com sucesso!")
+    atualizar_grade()
+
+def atualizar_grade():
+    for item in tabela.get_children():
+        tabela.delete(item)
+    cur.execute("SELECT id, nome, endereco, cep FROM pessoas ORDER BY id DESC")
+    for row in cur.fetchall():
+        tabela.insert("", tk.END, values=row)
+
+def excluir_registro():
+    item = tabela.focus()
+    if not item:
+        messagebox.showwarning("Atenção", "Selecione um registro para excluir!")
+        return
+    valores = tabela.item(item, "values")
+    id_registro = valores[0]
+    if not messagebox.askyesno("Confirmar", f"Deseja realmente excluir o ID {id_registro}?"):
+        return
+    cur.execute("DELETE FROM pessoas WHERE id = ?", (id_registro,))
+    con.commit()
+    messagebox.showinfo("Sucesso", f"Registro ID {id_registro} excluído!")
+    atualizar_grade()
+
+def editar_registro():
+    item = tabela.focus()
+    if not item:
+        messagebox.showwarning("Atenção", "Selecione um registro para editar!")
+        return
+    valores = tabela.item(item, "values")
+    global id_em_edicao
+    id_em_edicao = valores[0]
+
+    entrada_nome.delete(0, tk.END)
+    entrada_nome.insert(0, valores[1])
+    entrada_endereco.delete(0, tk.END)
+    entrada_endereco.insert(0, valores[2])
+    entrada_cep.delete(0, tk.END)
+    entrada_cep.insert(0, valores[3])
+
+    botao_salvar.config(state="disabled")
+    botao_editar.config(state="disabled")
+    botao_salvar_edicao.config(state="normal")
+    botao_novo.config(state="normal")
+
+def salvar_edicao():
+    nome = entrada_nome.get().strip()
+    endereco = entrada_endereco.get().strip()
+    cep = entrada_cep.get().strip()
+    if nome == "" or endereco == "" or cep == "":
+        messagebox.showwarning("Atenção", "Preencha todos os campos!")
+        return
+    cur.execute("UPDATE pessoas SET nome=?, endereco=?, cep=? WHERE id=?", (nome, endereco, cep, id_em_edicao))
+    con.commit()
+    messagebox.showinfo("Sucesso", f"Registro ID {id_em_edicao} atualizado!")
+    limpar_campos()
+    botao_salvar.config(state="normal")
+    botao_editar.config(state="normal")
+    botao_salvar_edicao.config(state="disabled")
+    atualizar_grade()
+
+def limpar_campos():
+    entrada_nome.delete(0, tk.END)
+    entrada_endereco.delete(0, tk.END)
+    entrada_cep.delete(0, tk.END)
+    botao_salvar.config(state="normal")
+    botao_editar.config(state="normal")
+    botao_salvar_edicao.config(state="disabled")
+
+janela = tk.Tk()
+janela.title("Cadastro de Pessoas")
+janela.geometry("620x420")
+
+tk.Label(janela, text="Digite o nome:").pack(pady=5)
+entrada_nome = tk.Entry(janela, width=35)
+entrada_nome.pack(pady=5)
+
+tk.Label(janela, text="Digite o endereço:").pack(pady=5)
+entrada_endereco = tk.Entry(janela, width=35)
+entrada_endereco.pack(pady=5)
+
+tk.Label(janela, text="Digite o CEP:").pack(pady=5)
+entrada_cep = tk.Entry(janela, width=35)
+entrada_cep.pack(pady=5)
+
+frame_botoes = tk.Frame(janela)
+frame_botoes.pack(pady=5)
+
+botao_novo = tk.Button(frame_botoes, text="Novo", command=limpar_campos)
+botao_novo.grid(row=0, column=0, padx=5)
+
+botao_salvar = tk.Button(frame_botoes, text="Salvar", command=salvar_nome)
+botao_salvar.grid(row=0, column=1, padx=5)
+
+botao_editar = tk.Button(frame_botoes, text="Editar", command=editar_registro)
+botao_editar.grid(row=0, column=2, padx=5)
+
+botao_salvar_edicao = tk.Button(frame_botoes, text="Salvar Edição", command=salvar_edicao, state="disabled")
+botao_salvar_edicao.grid(row=0, column=3, padx=5)
+
+botao_excluir = tk.Button(frame_botoes, text="Excluir", command=excluir_registro)
+botao_excluir.grid(row=0, column=4, padx=5)
+
+botao_sair = tk.Button(frame_botoes, text="Fechar", command=janela.destroy)
+botao_sair.grid(row=0, column=5, padx=5)
+
+frame_tabela = tk.Frame(janela)
+frame_tabela.pack(pady=10, fill="both", expand=True)
+
+tabela = ttk.Treeview(frame_tabela, columns=("id", "nome", "endereco", "cep"), show="headings", height=8)
+tabela.heading("id", text="ID")
+tabela.heading("nome", text="Nome")
+tabela.heading("endereco", text="Endereço")
+tabela.heading("cep", text="CEP")
+
+tabela.column("id", width=40, anchor="center")
+tabela.column("nome", width=150)
+tabela.column("endereco", width=220)
+tabela.column("cep", width=100, anchor="center")
+
+scrollbar_y = ttk.Scrollbar(frame_tabela, orient="vertical", command=tabela.yview)
+scrollbar_y.pack(side="right", fill="y")
+tabela.configure(yscrollcommand=scrollbar_y.set)
+tabela.pack(side="left", fill="both", expand=True)
+
+atualizar_grade()
+janela.mainloop()
+con.close()
